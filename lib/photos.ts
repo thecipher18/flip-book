@@ -19,9 +19,13 @@ export interface Photo {
   createdAt: Date;
 }
 
-export async function getPhotosByTag(tag: string): Promise<Photo[]> {
+export async function getPhotosByTag(
+  tag: string,
+  userId: string,
+): Promise<Photo[]> {
   const q = query(
     collection(db, "photos"),
+    where("uploadedBy", "==", userId),
     where("tag", "==", tag),
     orderBy("order", "asc"),
   );
@@ -29,16 +33,11 @@ export async function getPhotosByTag(tag: string): Promise<Photo[]> {
   return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Photo);
 }
 
-export async function getAllTags(): Promise<string[]> {
-  const snap = await getDocs(collection(db, "photos"));
-  const tags = new Set(snap.docs.map((doc) => doc.data().tag as string));
-  return Array.from(tags).sort();
-}
-
-export async function getTagsWithCover(): Promise<
-  { tag: string; coverUrl: string }[]
-> {
-  const snap = await getDocs(collection(db, "photos"));
+export async function getTagsWithCover(
+  userId: string,
+): Promise<{ tag: string; coverUrl: string }[]> {
+  const q = query(collection(db, "photos"), where("uploadedBy", "==", userId));
+  const snap = await getDocs(q);
   const tagMap = new Map<string, string>();
   snap.docs.forEach((doc) => {
     const { tag, url } = doc.data();

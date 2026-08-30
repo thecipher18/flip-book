@@ -18,8 +18,11 @@ export default function UploadPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    getTagsWithCover().then((t) => setExistingTags(t.map((x) => x.tag)));
-  }, []);
+    if (!user) return;
+    getTagsWithCover(user.uid).then((t) =>
+      setExistingTags(t.map((x) => x.tag)),
+    );
+  }, [user]);
 
   const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) setFiles(Array.from(e.target.files));

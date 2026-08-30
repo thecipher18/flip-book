@@ -12,10 +12,11 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getTagsWithCover()
+    if (!user) return;
+    getTagsWithCover(user.uid)
       .then(setTags)
       .finally(() => setLoading(false));
-  }, []);
+  }, [user]);
 
   return (
     <div className="min-h-screen bg-stone-100">
