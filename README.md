@@ -37,20 +37,13 @@ NEXT_PUBLIC_FIREBASE_APP_ID=
 
 Fill in values from Firebase Console → Project Settings → Your apps → Web app config.
 
-### 3. Create Firestore index
+### 3. Create Firestore composite index
 
 In Firebase Console → Firestore → Indexes → Composite, create:
 
-| Collection | Fields  | Order     |
-| ---------- | ------- | --------- |
-| `photos`   | `tag`   | Ascending |
-| `photos`   | `order` | Ascending |
-
-Or deploy via Firebase CLI:
-
-```bash
-firebase deploy --only firestore:indexes
-```
+| Collection | Field 1          | Field 2   | Field 3     |
+| ---------- | ---------------- | --------- | ----------- |
+| `photos`   | `uploadedBy` ASC | `tag` ASC | `order` ASC |
 
 ### 4. Firestore security rules
 
@@ -59,8 +52,10 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /photos/{photoId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
+      allow read: if request.auth != null
+                  && resource.data.uploadedBy == request.auth.uid;
+      allow write: if request.auth != null
+                   && request.resource.data.uploadedBy == request.auth.uid;
     }
   }
 }
@@ -107,4 +102,4 @@ photos/{photoId}
   createdAt: timestamp
 ```
 
-Photos are a shared library — all authenticated users see all photos.
+Each user sees only their own photos. `uploadedBy` is the Firebase Auth uid.
