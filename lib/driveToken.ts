@@ -2,7 +2,9 @@
 
 import { isTokenFresh } from "./driveQuery";
 
-const SCOPE = "https://www.googleapis.com/auth/drive.file email profile";
+// Identity only. Photos live in the owner's Drive and are served by this app's
+// API routes, so no user ever grants it access to their own Drive.
+const SCOPE = "email profile";
 
 let client: google.accounts.oauth2.TokenClient | null = null;
 let cached: { token: string; expiresAt: number } | null = null;

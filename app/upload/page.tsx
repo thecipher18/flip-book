@@ -3,11 +3,11 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useRequireAuth } from "@/context/AuthContext";
-import { findOrCreateAlbum, listAlbums, uploadPhoto } from "@/lib/drive";
+import { listAlbums, uploadPhotos } from "@/lib/drive";
 
 export default function UploadPage() {
   const router = useRouter();
-  const { ready } = useRequireAuth();
+  const { user, ready } = useRequireAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [files, setFiles] = useState<File[]>([]);
@@ -23,6 +23,11 @@ export default function UploadPage() {
       .catch(() => setExistingTags([]));
   }, [ready]);
 
+  // Readers have no business on this page; the API refuses them anyway.
+  useEffect(() => {
+    if (user && !user.canWrite) router.replace("/");
+  }, [user, router]);
+
   const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) setFiles(Array.from(e.target.files));
   };
@@ -34,8 +39,7 @@ export default function UploadPage() {
     setUploading(true);
     setError("");
     try {
-      const folderId = await findOrCreateAlbum(tag.trim());
-      await Promise.all(files.map((file) => uploadPhoto(file, folderId)));
+      await uploadPhotos(files, tag.trim());
       router.push("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
@@ -77,7 +81,7 @@ export default function UploadPage() {
                 ))}
               </datalist>
               <p className="text-xs text-stone-400 mt-1">
-                Becomes a folder in your Google Drive.
+                Becomes a folder in the shared library.
               </p>
             </div>
 

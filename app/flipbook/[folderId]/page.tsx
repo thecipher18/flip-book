@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import FlipBook from "@/components/FlipBook";
 import { useRequireAuth } from "@/context/AuthContext";
-import { getAlbumName, listPhotos, type DrivePhoto } from "@/lib/drive";
+import { getAlbum, type DrivePhoto } from "@/lib/drive";
 
 export default function FlipBookPage() {
   const { folderId } = useParams<{ folderId: string }>();
@@ -18,10 +18,10 @@ export default function FlipBookPage() {
 
   useEffect(() => {
     if (!ready) return;
-    Promise.all([getAlbumName(folderId), listPhotos(folderId)])
-      .then(([albumName, albumPhotos]) => {
-        setName(albumName);
-        setPhotos(albumPhotos);
+    getAlbum(folderId)
+      .then((album) => {
+        setName(album.name);
+        setPhotos(album.photos);
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Load failed"))
       .finally(() => setLoading(false));

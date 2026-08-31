@@ -15,3 +15,20 @@ export const TOKEN_SKEW_MS = 60_000;
 export function isTokenFresh(expiresAt: number, now: number): boolean {
   return now < expiresAt - TOKEN_SKEW_MS;
 }
+
+/**
+ * Writers are a comma-separated email allowlist (WRITER_EMAILS). Everyone else
+ * who signs in gets read-only access to the shared library.
+ */
+export function isWriter(
+  email: string | null | undefined,
+  allowlist: string | undefined,
+): boolean {
+  if (!email) return false;
+  const target = email.trim().toLowerCase();
+  if (!target) return false;
+  return (allowlist ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .includes(target);
+}

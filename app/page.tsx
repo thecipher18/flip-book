@@ -29,12 +29,14 @@ export default function HomePage() {
           <h1 className="text-xl font-bold text-stone-800">Flip Book</h1>
         </div>
         <div className="flex items-center gap-4">
-          <Link
-            href="/upload"
-            className="text-sm font-medium text-stone-600 hover:text-stone-900 transition"
-          >
-            + Add Photos
-          </Link>
+          {user?.canWrite && (
+            <Link
+              href="/upload"
+              className="text-sm font-medium text-stone-600 hover:text-stone-900 transition"
+            >
+              + Add Photos
+            </Link>
+          )}
           <button
             onClick={logOut}
             className="text-sm text-stone-400 hover:text-stone-700 transition"
@@ -53,7 +55,7 @@ export default function HomePage() {
       </header>
 
       <main className="max-w-5xl mx-auto px-6 py-10">
-        <h2 className="text-2xl font-bold text-stone-800 mb-6">Your Albums</h2>
+        <h2 className="text-2xl font-bold text-stone-800 mb-6">Albums</h2>
 
         {loading && <p className="text-stone-400 text-sm">Loading albums...</p>}
 
@@ -63,12 +65,16 @@ export default function HomePage() {
           <div className="text-center py-20 text-stone-400">
             <p className="text-4xl mb-4">📷</p>
             <p className="text-lg font-medium">No albums yet</p>
-            <p className="text-sm mt-1">
-              <Link href="/upload" className="underline hover:text-stone-600">
-                Upload some photos
-              </Link>{" "}
-              to get started.
-            </p>
+            {user?.canWrite ? (
+              <p className="text-sm mt-1">
+                <Link href="/upload" className="underline hover:text-stone-600">
+                  Upload some photos
+                </Link>{" "}
+                to get started.
+              </p>
+            ) : (
+              <p className="text-sm mt-1">Nothing has been shared yet.</p>
+            )}
           </div>
         )}
 
