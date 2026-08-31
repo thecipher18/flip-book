@@ -24,6 +24,8 @@ const SIGNED_OUT_KEY = "flipbook:signedOut";
 interface AuthContextValue {
   user: Profile | null;
   loading: boolean;
+  /** GIS has loaded, so signIn() can open its popup without being blocked. */
+  gisReady: boolean;
   signIn: () => Promise<void>;
   logOut: () => void;
 }
@@ -33,14 +35,20 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [gisReady, setGisReady] = useState(false);
 
   useEffect(() => {
     let alive = true;
 
     (async () => {
       try {
-        if (localStorage.getItem(SIGNED_OUT_KEY)) return;
+        // Waiting here, rather than inside signIn(), is what keeps the sign-in
+        // click synchronous — see the comment in signIn.
         await waitForGis();
+        if (!alive) return;
+        setGisReady(true);
+
+        if (localStorage.getItem(SIGNED_OUT_KEY)) return;
         await requestToken(false);
         const profile = await getProfile();
         if (alive) setUser(profile);
@@ -58,7 +66,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async () => {
-    await waitForGis();
+    if (!gisReady) throw new Error("Google sign-in is still loading");
+
+    // requestToken must be reached synchronously from the click handler.
+    // Any await before it (waiting on the GIS script, say) ends the browser's
+    // user-gesture window and the consent popup gets blocked.
     await requestToken(true);
     localStorage.removeItem(SIGNED_OUT_KEY);
     setUser(await getProfile());
@@ -71,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, logOut }}>
+    <AuthContext.Provider value={{ user, loading, gisReady, signIn, logOut }}>
       {children}
     </AuthContext.Provider>
   );
