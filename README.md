@@ -60,7 +60,13 @@ Copy the client ID.
 
 ### 5. Configure the environment
 
-Create `.env.local` in the project root:
+Copy the template and fill it in:
+
+```bash
+cp .env.example .env.local
+```
+
+Then set the client ID from step 4:
 
 ```
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
