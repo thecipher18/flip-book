@@ -2,21 +2,24 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, useRequireAuth } from "@/context/AuthContext";
 import TagCard from "@/components/TagCard";
-import { getTagsWithCover } from "@/lib/photos";
+import { listAlbums, type Album } from "@/lib/drive";
 
 export default function HomePage() {
-  const { user, logOut } = useAuth();
-  const [tags, setTags] = useState<{ tag: string; coverUrl: string }[]>([]);
+  const { logOut } = useAuth();
+  const { user, ready } = useRequireAuth();
+  const [albums, setAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!user) return;
-    getTagsWithCover(user.uid)
-      .then(setTags)
+    if (!ready) return;
+    listAlbums()
+      .then(setAlbums)
+      .catch((e) => setError(e instanceof Error ? e.message : "Load failed"))
       .finally(() => setLoading(false));
-  }, [user]);
+  }, [ready]);
 
   return (
     <div className="min-h-screen bg-stone-100">
@@ -38,11 +41,11 @@ export default function HomePage() {
           >
             Sign out
           </button>
-          {user?.photoURL && (
+          {user?.picture && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={user.photoURL}
-              alt="avatar"
+              src={user.picture}
+              alt={user.name}
               className="w-8 h-8 rounded-full"
             />
           )}
@@ -54,7 +57,9 @@ export default function HomePage() {
 
         {loading && <p className="text-stone-400 text-sm">Loading albums...</p>}
 
-        {!loading && tags.length === 0 && (
+        {error && <p className="text-red-500 text-sm">{error}</p>}
+
+        {!loading && !error && albums.length === 0 && (
           <div className="text-center py-20 text-stone-400">
             <p className="text-4xl mb-4">📷</p>
             <p className="text-lg font-medium">No albums yet</p>
@@ -68,8 +73,13 @@ export default function HomePage() {
         )}
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {tags.map(({ tag, coverUrl }) => (
-            <TagCard key={tag} tag={tag} coverUrl={coverUrl} />
+          {albums.map((album) => (
+            <TagCard
+              key={album.id}
+              id={album.id}
+              name={album.name}
+              coverId={album.coverId}
+            />
           ))}
         </div>
       </main>

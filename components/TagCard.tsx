@@ -1,28 +1,34 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
+import DriveImage from "./DriveImage";
 
 interface TagCardProps {
-  tag: string;
-  coverUrl: string;
+  id: string;
+  name: string;
+  coverId: string | null;
 }
 
-export default function TagCard({ tag, coverUrl }: TagCardProps) {
+export default function TagCard({ id, name, coverId }: TagCardProps) {
   return (
     <Link
-      href={`/flipbook/${encodeURIComponent(tag)}`}
+      href={`/flipbook/${id}`}
       className="group relative block rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-shadow aspect-[3/4] bg-stone-200"
     >
-      <Image
-        src={coverUrl}
-        alt={tag}
-        fill
-        className="object-cover group-hover:scale-105 transition-transform duration-300"
-      />
+      {coverId ? (
+        <DriveImage
+          fileId={coverId}
+          alt={name}
+          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+        />
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center text-3xl">
+          📷
+        </div>
+      )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
       <span className="absolute bottom-3 left-4 right-4 text-white font-semibold text-lg truncate drop-shadow">
-        {tag}
+        {name}
       </span>
     </Link>
   );

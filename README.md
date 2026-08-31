@@ -1,79 +1,72 @@
 # Flip Book
 
-A digital flip book app. Photos stored in Firebase, grouped by trip/occasion tag, displayed with page-turn animation.
+A digital flip book app. Photos live in **your own Google Drive**, grouped by trip/occasion, displayed with a page-turn animation.
+
+No backend, no database, no billing account. Each user's photos stay in their own Drive.
 
 ## Stack
 
 - Next.js (App Router) + TypeScript + Tailwind CSS
-- Firebase Auth (Google SSO)
-- Firestore (photo metadata)
-- Firebase Storage (image files)
-- `react-pageflip` (animation)
+- Google Identity Services — auth + Drive authorization
+- Google Drive API — storage _and_ metadata
+- `react-pageflip` — animation
+
+## How it works
+
+There is no database. Drive itself holds the structure:
+
+```
+Your Drive
+└── Flip Book/
+    ├── Japan 2024/      ← an album
+    │   ├── IMG_001.jpg
+    │   └── IMG_002.jpg
+    └── Wedding/
+        └── IMG_010.jpg
+```
+
+- **Album** = a subfolder of `Flip Book`
+- **Photo order** = `createdTime`, ascending (chronological)
+- **Cover** = first photo in the folder
+
+Photos stay **private**. The app fetches bytes with your access token and renders them from object URLs — nothing is made link-public.
 
 ## Setup
 
-### 1. Create Firebase project
+### 1. Create a Google Cloud project
 
-Go to [console.firebase.google.com](https://console.firebase.google.com) and create a new project.
+[console.cloud.google.com](https://console.cloud.google.com) → create or select a project.
 
-Enable the following services:
+### 2. Enable the Drive API
 
-- **Authentication** → Sign-in method → Google
-- **Firestore Database** → Start in production mode
-- **Storage** → Start in production mode
+**APIs & Services** → **Library** → search "Google Drive API" → **Enable**.
 
-### 2. Configure environment variables
+### 3. Configure the OAuth consent screen
+
+**APIs & Services** → **OAuth consent screen**:
+
+- User type: **External**
+- Add the scope `.../auth/drive.file` (non-sensitive — no Google verification review required)
+- While the app is in **Testing**, only listed test users can sign in. Add your own Google account under **Test users**, or **Publish** the app.
+
+### 4. Create an OAuth client ID
+
+**APIs & Services** → **Credentials** → **Create credentials** → **OAuth client ID**:
+
+- Application type: **Web application**
+- Authorized JavaScript origins: `http://localhost:3000`
+
+Copy the client ID.
+
+### 5. Configure the environment
 
 Create `.env.local` in the project root:
 
 ```
-NEXT_PUBLIC_FIREBASE_API_KEY=
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
-NEXT_PUBLIC_FIREBASE_APP_ID=
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 ```
 
-Fill in values from Firebase Console → Project Settings → Your apps → Web app config.
-
-### 3. Create Firestore composite index
-
-In Firebase Console → Firestore → Indexes → Composite, create:
-
-| Collection | Field 1          | Field 2   | Field 3     |
-| ---------- | ---------------- | --------- | ----------- |
-| `photos`   | `uploadedBy` ASC | `tag` ASC | `order` ASC |
-
-### 4. Firestore security rules
-
-```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /photos/{photoId} {
-      allow read: if request.auth != null
-                  && resource.data.uploadedBy == request.auth.uid;
-      allow write: if request.auth != null
-                   && request.resource.data.uploadedBy == request.auth.uid;
-    }
-  }
-}
-```
-
-### 5. Storage security rules
-
-```
-rules_version = '2';
-service firebase.storage {
-  match /b/{bucket}/o {
-    match /photos/{allPaths=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
-    }
-  }
-}
-```
+`.env.local` is not hot-reloaded — restart the dev server after editing it.
 
 ### 6. Run
 
@@ -82,24 +75,43 @@ npm install
 npm run dev
 ```
 
-## Pages
+## Scripts
 
-| Route             | Description                    |
-| ----------------- | ------------------------------ |
-| `/login`          | Google sign-in                 |
-| `/`               | Album grid grouped by tag      |
-| `/flipbook/[tag]` | Flip book animation for a tag  |
-| `/upload`         | Upload photos and assign a tag |
+| Script          | Purpose                                                   |
+| --------------- | --------------------------------------------------------- |
+| `npm run dev`   | Dev server                                                |
+| `npm run build` | Production build                                          |
+| `npm run lint`  | ESLint                                                    |
+| `npm test`      | Pure-helper self-checks (query escaping, token freshness) |
 
-## Data model
+## Scope
+
+The app requests only `https://www.googleapis.com/auth/drive.file`, which grants
+per-file access to files **the app itself created**. It cannot read the rest of
+your Drive.
+
+The flip side: photos you add to the `Flip Book` folder manually from Drive are
+invisible to the app. Upload through the app instead. (Adding a Google Picker
+would let you hand it specific existing files.)
+
+## Known limitations
+
+| Limitation                     | Notes                                                                                    |
+| ------------------------------ | ---------------------------------------------------------------------------------------- |
+| No CDN                         | Every view hits the Drive API. Fine at personal scale.                                   |
+| Blob cache is in-memory        | Photos re-download once per page load. Upgrade to the Cache API if it drags.             |
+| Deleting a photo in Drive      | Renders a "Photo unavailable" placeholder.                                               |
+| One tag per photo              | A file lives in one folder. Drive `appProperties` would allow multiple.                  |
+| No custom ordering             | Chronological only. `appProperties` could store an explicit order.                       |
+| Silent token re-grant can fail | Cookie-restrictive browsers or an expired Google session fall back to the consent popup. |
+
+## Project layout
 
 ```
-photos/{photoId}
-  url: string          // Firebase Storage download URL
-  tag: string          // album name e.g. "Japan 2024"
-  order: number        // position in flip book (0-indexed)
-  uploadedBy: string   // user uid
-  createdAt: timestamp
+lib/driveToken.ts   GIS token client — silent re-grant, caching, expiry
+lib/drive.ts        Drive API: folders, listing, upload, byte fetch
+lib/driveQuery.ts   Pure helpers (query escaping, token freshness)
+context/            Auth provider + useRequireAuth gate
+components/         DriveImage, FlipBook, TagCard
+app/                login, album grid, flipbook/[folderId], upload
 ```
-
-Each user sees only their own photos. `uploadedBy` is the Firebase Auth uid.

@@ -1,18 +1,7 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  images: {
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "firebasestorage.googleapis.com",
-      },
-      {
-        protocol: "https",
-        hostname: "lh3.googleusercontent.com", // Google profile photos
-      },
-    ],
-  },
-};
+// No `images` config: Drive photos are private, so they're fetched with an
+// access token and rendered from object URLs rather than through next/image.
+const nextConfig: NextConfig = {};
 
 export default nextConfig;

@@ -1,14 +1,13 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
-import { uploadPhoto, getTagsWithCover } from "@/lib/photos";
-import { useEffect } from "react";
+import { useRequireAuth } from "@/context/AuthContext";
+import { findOrCreateAlbum, listAlbums, uploadPhoto } from "@/lib/drive";
 
 export default function UploadPage() {
-  const { user } = useAuth();
   const router = useRouter();
+  const { ready } = useRequireAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [files, setFiles] = useState<File[]>([]);
@@ -18,11 +17,11 @@ export default function UploadPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!user) return;
-    getTagsWithCover(user.uid).then((t) =>
-      setExistingTags(t.map((x) => x.tag)),
-    );
-  }, [user]);
+    if (!ready) return;
+    listAlbums()
+      .then((albums) => setExistingTags(albums.map((a) => a.name)))
+      .catch(() => setExistingTags([]));
+  }, [ready]);
 
   const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) setFiles(Array.from(e.target.files));
@@ -30,13 +29,13 @@ export default function UploadPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!files.length || !tag.trim() || !user) return;
+    if (!files.length || !tag.trim()) return;
+
     setUploading(true);
     setError("");
     try {
-      await Promise.all(
-        files.map((file, i) => uploadPhoto(file, tag.trim(), i, user.uid)),
-      );
+      const folderId = await findOrCreateAlbum(tag.trim());
+      await Promise.all(files.map((file) => uploadPhoto(file, folderId)));
       router.push("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
@@ -59,7 +58,6 @@ export default function UploadPage() {
           <h1 className="text-2xl font-bold text-stone-800 mb-6">Add Photos</h1>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-            {/* Tag input */}
             <div>
               <label className="block text-sm font-medium text-stone-600 mb-1">
                 Album / Tag
@@ -78,9 +76,11 @@ export default function UploadPage() {
                   <option key={t} value={t} />
                 ))}
               </datalist>
+              <p className="text-xs text-stone-400 mt-1">
+                Becomes a folder in your Google Drive.
+              </p>
             </div>
 
-            {/* File picker */}
             <div>
               <label className="block text-sm font-medium text-stone-600 mb-1">
                 Photos

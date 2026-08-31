@@ -7,50 +7,67 @@ import {
   useState,
   ReactNode,
 } from "react";
+import { useRouter } from "next/navigation";
+import { getProfile, type Profile } from "@/lib/drive";
 import {
-  onAuthStateChanged,
-  signInWithPopup,
-  signOut,
-  User,
-} from "firebase/auth";
-import { auth, googleProvider } from "@/lib/firebase";
+  cachedToken,
+  clearToken,
+  requestToken,
+  waitForGis,
+} from "@/lib/driveToken";
+
+// Signing out only drops the local token; the Google grant is left in place so
+// the next sign-in stays silent. This flag stops the silent re-grant from
+// signing the user straight back in on reload.
+const SIGNED_OUT_KEY = "flipbook:signedOut";
 
 interface AuthContextValue {
-  user: User | null;
+  user: Profile | null;
   loading: boolean;
   signIn: () => Promise<void>;
-  logOut: () => Promise<void>;
+  logOut: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    return onAuthStateChanged(auth, async (u) => {
-      setUser(u);
-      if (u) {
-        const token = await u.getIdToken();
-        await fetch("/api/session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token }),
-        });
-      } else {
-        await fetch("/api/session", { method: "DELETE" });
+    let alive = true;
+
+    (async () => {
+      try {
+        if (localStorage.getItem(SIGNED_OUT_KEY)) return;
+        await waitForGis();
+        await requestToken(false);
+        const profile = await getProfile();
+        if (alive) setUser(profile);
+      } catch {
+        // No silent grant available — the user signs in from /login.
+        if (alive) setUser(null);
+      } finally {
+        if (alive) setLoading(false);
       }
-      setLoading(false);
-    });
+    })();
+
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const signIn = async () => {
-    await signInWithPopup(auth, googleProvider);
+    await waitForGis();
+    await requestToken(true);
+    localStorage.removeItem(SIGNED_OUT_KEY);
+    setUser(await getProfile());
   };
 
-  const logOut = async () => {
-    await signOut(auth);
+  const logOut = () => {
+    localStorage.setItem(SIGNED_OUT_KEY, "1");
+    clearToken();
+    setUser(null);
   };
 
   return (
@@ -64,4 +81,19 @@ export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
+}
+
+/**
+ * Client-side gate. There is no server-side data to protect any more — Drive
+ * rejects any request without a valid token — so this is UX, not enforcement.
+ */
+export function useRequireAuth() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user) router.replace("/login");
+  }, [user, loading, router]);
+
+  return { user, loading, ready: !loading && !!user && !!cachedToken() };
 }

@@ -8,6 +8,7 @@ export default function LoginPage() {
   const { user, loading, signIn } = useAuth();
   const router = useRouter();
   const [signingIn, setSigningIn] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!loading && user) router.replace("/");
@@ -16,8 +17,11 @@ export default function LoginPage() {
   const handleSignIn = async () => {
     if (signingIn) return;
     setSigningIn(true);
+    setError("");
     try {
       await signIn();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Sign-in failed");
     } finally {
       setSigningIn(false);
     }
@@ -31,7 +35,7 @@ export default function LoginPage() {
           Flip Book
         </h1>
         <p className="text-stone-500 text-sm text-center">
-          Your shared photo memories, animated.
+          Your photo memories, animated — stored in your own Google Drive.
         </p>
         <button
           onClick={handleSignIn}
@@ -58,6 +62,12 @@ export default function LoginPage() {
           </svg>
           {signingIn ? "Signing in..." : "Sign in with Google"}
         </button>
+
+        {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+
+        <p className="text-xs text-stone-400 text-center">
+          Flip Book only sees the photos it creates in your Drive.
+        </p>
       </div>
     </div>
   );

@@ -2,11 +2,11 @@
 
 import { useRef } from "react";
 import HTMLFlipBook from "react-pageflip";
-import Image from "next/image";
-import type { Photo } from "@/lib/photos";
+import DriveImage from "./DriveImage";
+import type { DrivePhoto } from "@/lib/drive";
 
 interface FlipBookProps {
-  photos: Photo[];
+  photos: DrivePhoto[];
 }
 
 // react-pageflip doesn't export its ref type, so we use a loose ref
@@ -62,11 +62,10 @@ export default function FlipBook({ photos }: FlipBookProps) {
             key={photo.id}
             className="relative w-full h-full bg-stone-100 overflow-hidden"
           >
-            <Image
-              src={photo.url}
+            <DriveImage
+              fileId={photo.id}
               alt={`Page ${i + 1}`}
-              fill
-              className="object-cover"
+              className="absolute inset-0 w-full h-full object-cover"
             />
             <span className="absolute bottom-2 right-3 text-xs text-stone-400">
               {i + 1} / {photos.length}
